@@ -110,10 +110,10 @@ for data, detalhe in eventos.items():
     btn = tk.Button(
         janela,
         text=data,
-        font=("Arial", 11),
+        font=("Arial", 10, "bold"),
         bg="#1b365d",
         fg="white",
-        relief="flat",
+        relief="raised",
         command=lambda d=detalhe: mostrar_fato(d),
     )
     btn.pack(fill="x", padx=40, pady=6)
