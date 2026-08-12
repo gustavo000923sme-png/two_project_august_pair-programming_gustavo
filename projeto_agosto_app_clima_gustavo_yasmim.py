@@ -13,14 +13,34 @@ BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
 
 fake = Faker('pt_BR')
 
-COLOR_AZUL_ESC = "#1e293b"
+URL_CAPA = "https://i.pinimg.com/736x/20/0c/81/200c81c51c0eb0ce5d314af4c0ef2dd5.jpg"
+
+MODO_ESCURO = True
+
+PALETA_ESCURA = {
+    "bg_instrucao": "#1e293b",
+    "fg_instrucao": "#ffffff",
+    "bg_resultado": "#1e293b",
+    "fg_resultado": "#fde047",
+    "btn_tema_bg": "#334155",
+    "btn_tema_fg": "#ffffff",
+    "btn_tema_txt": "☀️ Modo Claro"
+}
+
+PALETA_CLARA = {
+    "bg_instrucao": "#ffffff",
+    "fg_instrucao": "#0f172a",
+    "bg_resultado": "#f8fafc",
+    "fg_resultado": "#0f172a",
+    "btn_tema_bg": "#e2e8f0",
+    "btn_tema_fg": "#0f172a",
+    "btn_tema_txt": "🌙 Modo Escuro"
+}
+
 COLOR_AZUL_MED = "#334155"
 COLOR_AZUL_CLA = "#0284c7"
 COLOR_VERDE    = "#16a34a"
-COLOR_AMARELO  = "#fde047"
 COLOR_ACO      = "#0f172a"
-
-URL_CAPA = "https://i.pinimg.com/736x/20/0c/81/200c81c51c0eb0ce5d314af4c0ef2dd5.jpg"
 
 imagens_cache = {}
 
@@ -48,12 +68,20 @@ def carregar_foto_url(url, largura, altura):
         return None
 
 def obter_cor_temperatura(temperatura):
-    if temperatura <= 10:
-        return "#0f172a", "#ffffff"
-    elif 11 <= temperatura <= 18:
-        return "#1e293b", "#ffffff"
+    if MODO_ESCURO:
+        if temperatura <= 10:
+            return "#0f172a", "#ffffff"
+        elif 11 <= temperatura <= 18:
+            return "#1e293b", "#ffffff"
+        else:
+            return "#0284c7", "#ffffff"
     else:
-        return "#0284c7", "#ffffff"
+        if temperatura <= 10:
+            return "#e2e8f0", "#0f172a"
+        elif 11 <= temperatura <= 18:
+            return "#f1f5f9", "#0f172a"
+        else:
+            return "#bae6fd", "#0369a1"
 
 def formatar_horario(timestamp_utc, fuso_segundos):
     fuso = timezone(timedelta(seconds=fuso_segundos))
@@ -136,8 +164,9 @@ def buscar_clima():
         messagebox.showwarning("Aviso", "Por favor, digite o nome de uma cidade.")
         return
 
+    paleta = PALETA_ESCURA if MODO_ESCURO else PALETA_CLARA
     botao_buscar.config(state="disabled", text="Buscando...")
-    label_resultado.config(text="Carregando informações...", bg=COLOR_AZUL_ESC, fg="#ffffff")
+    label_resultado.config(text="Carregando informações...", bg=paleta["bg_resultado"], fg=paleta["fg_resultado"])
 
     threading.Thread(target=_executar_busca, args=(cidade,), daemon=True).start()
 
@@ -149,6 +178,16 @@ def gerar_cidade_aleatoria():
     entry_cidade.insert(0, cidade_escolhida)
     buscar_clima()
 
+def alternar_tema():
+    global MODO_ESCURO
+    MODO_ESCURO = not MODO_ESCURO
+    
+    paleta = PALETA_ESCURA if MODO_ESCURO else PALETA_CLARA
+
+    botao_tema.config(text=paleta["btn_tema_txt"], bg=paleta["btn_tema_bg"], fg=paleta["btn_tema_fg"])
+    label_instrucao.config(bg=paleta["bg_instrucao"], fg=paleta["fg_instrucao"])
+    label_resultado.config(bg=paleta["bg_resultado"], fg=paleta["fg_resultado"])
+
 janela = tk.Tk()
 janela.title("App de Clima - Vocação")
 janela.geometry("450x600")
@@ -157,20 +196,33 @@ canvas = tk.Canvas(janela, width=450, height=600, highlightthickness=0)
 canvas.pack(fill="both", expand=True)
 
 foto_fundo = carregar_foto_url(URL_CAPA, 450, 600)
+item_fundo = canvas.create_image(0, 0, image=foto_fundo, anchor="nw")
 if foto_fundo:
-    canvas.create_image(0, 0, image=foto_fundo, anchor="nw")
     canvas.foto_fundo_ref = foto_fundo
 
 item_icone = canvas.create_image(225, 290, anchor="center")
+
+# Botão ajustado mais para dentro (x=320, y=15)
+botao_tema = tk.Button(
+    janela, 
+    text="☀️ Modo Claro", 
+    command=alternar_tema, 
+    bg="#334155", 
+    fg="#ffffff", 
+    font=("Segoe UI", 8, "bold"),
+    relief="flat",
+    cursor="hand2"
+)
+botao_tema.place(x=320, y=15)
 
 label_instrucao = tk.Label(
     janela, 
     text="Digite a cidade:", 
     font=("Segoe UI", 11, "bold"), 
-    bg=COLOR_AZUL_ESC, 
-    fg="#ffffff"
+    bg=PALETA_ESCURA["bg_instrucao"], 
+    fg=PALETA_ESCURA["fg_instrucao"]
 )
-label_instrucao.place(relx=0.5, y=35, anchor="center")
+label_instrucao.place(relx=0.5, y=40, anchor="center")
 
 entry_cidade = tk.Entry(
     janela, 
@@ -219,8 +271,8 @@ label_resultado = tk.Label(
     font=("Segoe UI", 10, "bold"), 
     justify="left", 
     wraplength=380, 
-    bg=COLOR_AZUL_ESC, 
-    fg=COLOR_AMARELO, 
+    bg=PALETA_ESCURA["bg_resultado"], 
+    fg=PALETA_ESCURA["fg_resultado"], 
     padx=15, 
     pady=12,
     relief="ridge",
