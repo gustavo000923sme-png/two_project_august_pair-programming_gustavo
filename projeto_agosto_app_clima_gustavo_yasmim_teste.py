@@ -1,5 +1,6 @@
 import io
 import random
+import threading
 import tkinter as tk
 from tkinter import messagebox
 import requests
@@ -7,32 +8,47 @@ from PIL import Image, ImageTk
 from faker import Faker
 from datetime import datetime, timezone, timedelta
 
-# Configuração da API OpenWeather
 API_KEY = "6f1e6fc120b7363a69229808e49eea48"
 BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
 
 fake = Faker('pt_BR')
 
-# --- PALETA DE CORES ---
-COLOR_AZUL_ESC = "#004d6e"
-COLOR_AZUL_MED = "#0081ab"
-COLOR_AZUL_CLA = "#00b1cd"
-COLOR_VERDE    = "#a6c844"
-COLOR_AMARELO  = "#edce01"
-COLOR_ACO      = "#4a3336"
+URL_CAPA = "https://i.pinimg.com/736x/20/0c/81/200c81c51c0eb0ce5d314af4c0ef2dd5.jpg"
 
-# LINK DIRETO DE TESTE (Céu com nuvens via Unsplash)
-URL_CAPA = "https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?w=600&auto=format&fit=crop"
+MODO_ESCURO = True
+
+PALETA_ESCURA = {
+    "bg_instrucao": "#1e293b",
+    "fg_instrucao": "#ffffff",
+    "bg_resultado": "#1e293b",
+    "fg_resultado": "#fde047",
+    "btn_tema_bg": "#334155",
+    "btn_tema_fg": "#ffffff",
+    "btn_tema_txt": "☀️ Modo Claro"
+}
+
+PALETA_CLARA = {
+    "bg_instrucao": "#ffffff",
+    "fg_instrucao": "#0f172a",
+    "bg_resultado": "#f8fafc",
+    "fg_resultado": "#0f172a",
+    "btn_tema_bg": "#e2e8f0",
+    "btn_tema_fg": "#0f172a",
+    "btn_tema_txt": "🌙 Modo Escuro"
+}
+
+COLOR_AZUL_MED = "#334155"
+COLOR_AZUL_CLA = "#0284c7"
+COLOR_VERDE    = "#16a34a"
+COLOR_ACO      = "#0f172a"
 
 imagens_cache = {}
 
 def carregar_foto_url(url, largura, altura):
-    """Baixa a imagem da web simulando um navegador para evitar bloqueios."""
     if url in imagens_cache:
         return imagens_cache[url]
     
     try:
-        # Cabeçalho completo para evitar que servidores (como Imgur) bloqueiem o Python
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
             'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
@@ -52,24 +68,27 @@ def carregar_foto_url(url, largura, altura):
         return None
 
 def obter_cor_temperatura(temperatura):
-    if temperatura <= 10:
-        return COLOR_AZUL_ESC, "#ffffff"
-    elif 11 <= temperatura <= 18:
-        return COLOR_AZUL_MED, "#ffffff"
+    if MODO_ESCURO:
+        if temperatura <= 10:
+            return "#0f172a", "#ffffff"
+        elif 11 <= temperatura <= 18:
+            return "#1e293b", "#ffffff"
+        else:
+            return "#0284c7", "#ffffff"
     else:
-        return COLOR_AZUL_CLA, COLOR_ACO
+        if temperatura <= 10:
+            return "#e2e8f0", "#0f172a"
+        elif 11 <= temperatura <= 18:
+            return "#f1f5f9", "#0f172a"
+        else:
+            return "#bae6fd", "#0369a1"
 
 def formatar_horario(timestamp_utc, fuso_segundos):
     fuso = timezone(timedelta(seconds=fuso_segundos))
     data_hora = datetime.fromtimestamp(timestamp_utc, tz=fuso)
     return data_hora.strftime("%H:%M")
 
-def buscar_clima():
-    cidade = entry_cidade.get().strip()
-    if not cidade:
-        messagebox.showwarning("Aviso", "Por favor, digite o nome de uma cidade.")
-        return
-
+def _executar_busca(cidade):
     parametros = {
         'q': cidade,
         'appid': API_KEY,
@@ -97,35 +116,59 @@ def buscar_clima():
             nascer_sol = formatar_horario(dados["sys"]["sunrise"], fuso_segundos)
             por_sol = formatar_horario(dados["sys"]["sunset"], fuso_segundos)
 
-            # Baixar e exibir o ícone do clima correspondente
             url_icone_clima = f"https://openweathermap.org/img/wn/{icone_codigo}@2x.png"
-            foto_icone = carregar_foto_url(url_icone_clima, 70, 70)
-            if foto_icone:
-                label_icone.config(image=foto_icone)
-                label_icone.image = foto_icone
+            foto_icone = carregar_foto_url(url_icone_clima, 80, 80)
+            
+            def atualizar_ui():
+                if foto_icone:
+                    canvas.itemconfig(item_icone, image=foto_icone)
+                    canvas.foto_icone_ref = foto_icone
 
-            cor_bg, cor_fg = obter_cor_temperatura(temperatura)
-            label_resultado.config(bg=cor_bg, fg=cor_fg)
+                cor_bg, cor_fg = obter_cor_temperatura(temperatura)
+                label_resultado.config(bg=cor_bg, fg=cor_fg)
 
-            resultado_texto = (
-                f"Clima em {dados['name']}, {pais}:\n\n"
-                f"🌡️ Temp: {temperatura}°C (Mín: {temp_min}°C | Máx: {temp_max}°C)\n"
-                f"🔥 Sensação: {sensacao}°C\n"
-                f"☁️ Condição: {descricao.capitalize()}\n"
-                f"💧 Umidade: {umidade}%\n"
-                f"💨 Vento: {vento} km/h\n"
-                f"🌅 Nascer do Sol: {nascer_sol}\n"
-                f"🌇 Pôr do Sol: {por_sol}"
-            )
-            label_resultado.config(text=resultado_texto)
+                resultado_texto = (
+                    f"Clima em {dados['name']}, {pais}:\n\n"
+                    f"🌡️ Temp: {temperatura}°C (Mín: {temp_min}°C | Máx: {temp_max}°C)\n"
+                    f"🔥 Sensação: {sensacao}°C\n"
+                    f"☁️ Condição: {descricao.capitalize()}\n"
+                    f"💧 Umidade: {umidade}%\n"
+                    f"💨 Vento: {vento} km/h\n"
+                    f"🌅 Nascer do Sol: {nascer_sol}\n"
+                    f"🌇 Pôr do Sol: {por_sol}"
+                )
+                label_resultado.config(text=resultado_texto)
+                botao_buscar.config(state="normal", text="Buscar Clima")
+
+            janela.after(0, atualizar_ui)
 
         elif resposta.status_code == 401:
-            messagebox.showerror("Erro 401", "Chave de API inválida ou ainda não ativada.")
+            janela.after(0, lambda: exibir_erro("Chave de API inválida ou ainda não ativada."))
         else:
-            messagebox.showerror("Erro", f"Cidade '{cidade}' não encontrada!")
+            janela.after(0, lambda: exibir_erro(f"Cidade '{cidade}' não encontrada!"))
 
     except requests.exceptions.RequestException:
-        messagebox.showerror("Erro de Conexão", "Não foi possível conectar à internet.")
+        janela.after(0, lambda: exibir_erro("Não foi possível conectar à internet."))
+
+def exibir_erro(mensagem):
+    label_resultado.config(
+        text=f"❌ {mensagem}", 
+        bg="#7f1d1d", 
+        fg="#ffffff"
+    )
+    botao_buscar.config(state="normal", text="Buscar Clima")
+
+def buscar_clima():
+    cidade = entry_cidade.get().strip()
+    if not cidade:
+        messagebox.showwarning("Aviso", "Por favor, digite o nome de uma cidade.")
+        return
+
+    paleta = PALETA_ESCURA if MODO_ESCURO else PALETA_CLARA
+    botao_buscar.config(state="disabled", text="Buscando...")
+    label_resultado.config(text="Carregando informações...", bg=paleta["bg_resultado"], fg=paleta["fg_resultado"])
+
+    threading.Thread(target=_executar_busca, args=(cidade,), daemon=True).start()
 
 def gerar_cidade_aleatoria():
     cidades_teste = ["Sao Paulo, BR", "Moscow, RU", "London, UK", "Tokyo, JP"]
@@ -135,29 +178,51 @@ def gerar_cidade_aleatoria():
     entry_cidade.insert(0, cidade_escolhida)
     buscar_clima()
 
-# --- Interface Gráfica Centralizada ---
+def alternar_tema():
+    global MODO_ESCURO
+    MODO_ESCURO = not MODO_ESCURO
+    
+    paleta = PALETA_ESCURA if MODO_ESCURO else PALETA_CLARA
+
+    botao_tema.config(text=paleta["btn_tema_txt"], bg=paleta["btn_tema_bg"], fg=paleta["btn_tema_fg"])
+    label_instrucao.config(bg=paleta["bg_instrucao"], fg=paleta["fg_instrucao"])
+    label_resultado.config(bg=paleta["bg_resultado"], fg=paleta["fg_resultado"])
+
 janela = tk.Tk()
-janela.title("App de Clima - Layout Centralizado")
+janela.title("App de Clima - Vocação")
 janela.geometry("450x600")
 
-# 1. IMAGEM DE FUNDO
-label_fundo = tk.Label(janela, bg=COLOR_AZUL_ESC)
-label_fundo.place(x=0, y=0, relwidth=1, relheight=1)
+canvas = tk.Canvas(janela, width=450, height=600, highlightthickness=0)
+canvas.pack(fill="both", expand=True)
 
 foto_fundo = carregar_foto_url(URL_CAPA, 450, 600)
+item_fundo = canvas.create_image(0, 0, image=foto_fundo, anchor="nw")
 if foto_fundo:
-    label_fundo.config(image=foto_fundo)
-    label_fundo.image = foto_fundo  # Mantém a referência da imagem salva na memória
+    canvas.foto_fundo_ref = foto_fundo
 
-# 2. CONTROLES DA INTERFACE
+item_icone = canvas.create_image(225, 290, anchor="center")
+
+# Botão ajustado mais para dentro (x=320, y=15)
+botao_tema = tk.Button(
+    janela, 
+    text="☀️ Modo Claro", 
+    command=alternar_tema, 
+    bg="#334155", 
+    fg="#ffffff", 
+    font=("Segoe UI", 8, "bold"),
+    relief="flat",
+    cursor="hand2"
+)
+botao_tema.place(x=320, y=15)
+
 label_instrucao = tk.Label(
     janela, 
     text="Digite a cidade:", 
     font=("Segoe UI", 11, "bold"), 
-    bg=COLOR_AZUL_ESC, 
-    fg="#ffffff"
+    bg=PALETA_ESCURA["bg_instrucao"], 
+    fg=PALETA_ESCURA["fg_instrucao"]
 )
-label_instrucao.pack(pady=(25, 5))
+label_instrucao.place(relx=0.5, y=40, anchor="center")
 
 entry_cidade = tk.Entry(
     janela, 
@@ -171,7 +236,7 @@ entry_cidade = tk.Entry(
     highlightcolor=COLOR_AZUL_CLA,
     justify="center"
 )
-entry_cidade.pack(pady=5)
+entry_cidade.place(relx=0.5, y=75, anchor="center")
 entry_cidade.bind("<Return>", lambda event: buscar_clima())
 
 botao_buscar = tk.Button(
@@ -185,7 +250,7 @@ botao_buscar = tk.Button(
     cursor="hand2",
     padx=15
 )
-botao_buscar.pack(pady=5)
+botao_buscar.place(relx=0.5, y=115, anchor="center")
 
 botao_fake = tk.Button(
     janela, 
@@ -198,11 +263,7 @@ botao_fake = tk.Button(
     cursor="hand2",
     padx=15
 )
-botao_fake.pack(pady=5)
-
-# Label para exibir o ícone do clima
-label_icone = tk.Label(janela, bg=COLOR_AZUL_ESC)
-label_icone.pack(pady=(10, 0))
+botao_fake.place(relx=0.5, y=155, anchor="center")
 
 label_resultado = tk.Label(
     janela, 
@@ -210,13 +271,13 @@ label_resultado = tk.Label(
     font=("Segoe UI", 10, "bold"), 
     justify="left", 
     wraplength=380, 
-    bg=COLOR_AZUL_ESC, 
-    fg=COLOR_AMARELO, 
+    bg=PALETA_ESCURA["bg_resultado"], 
+    fg=PALETA_ESCURA["fg_resultado"], 
     padx=15, 
     pady=12,
     relief="ridge",
     bd=2
 )
-label_resultado.pack(pady=10)
+label_resultado.place(relx=0.5, y=450, anchor="center")
 
 janela.mainloop()
