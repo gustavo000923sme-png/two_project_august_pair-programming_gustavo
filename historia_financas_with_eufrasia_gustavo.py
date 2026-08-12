@@ -102,7 +102,8 @@ eventos = {
     "1872 - Herança & Europa": "Após perder os pais, mudou-se para Paris e assumiu a gestão da fortuna da família.",
     "1873-1930 - Carteira Global": "Investiu em títulos, ações e ferrovias em 13 países e 7 moedas diferentes.",
     "1930 - Legado": "Faleceu deixando sua fortuna para causas sociais e educacionais no Brasil.",
-    # herança, relacionamento.
+    "Curiosidade": "Quantos anos levou para fazer o inventário da herança? Levou 23 anos para concluir o inventario, e 7 paises para concluit a herança, pois Eufrasia tinha espalhado pelos sete paises.",
+    "Legado da Eufrasia": "Eufrasia se relaconou com um homem chamado Joaquim Nabuco, mas para se casar com ele, Eufrasia colocou a condiçao de que eles só poderiam se casar se fosse em Paris e nao no Rio de Janeiro"
 }
 
 # 6. Criação dos Botões
