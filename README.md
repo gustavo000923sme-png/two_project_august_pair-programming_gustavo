@@ -73,7 +73,7 @@ python financas_dashboard_bankb3_seunome.py
 
 # 4. Executar o App de Clima
 python app_clima_vocacao_seunome.py
-
+´´´
 ### Estrutura do Repositório
 
 ├── historia_financas_with_eufrasia_seunome.py    # Aplicação sobre Eufrásia Teixeira Leite (Linha do Tempo)
