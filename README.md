@@ -58,8 +58,6 @@ Abra o terminal ou prompt de comando e execute:
 
 ```bash
 pip install requests pillow faker
-
-python -m pip install requests pillow faker
 sudo apt-get install python3-tkinter
 
 # 1. Executar a Linha do Tempo de Eufrásia
@@ -73,14 +71,11 @@ python financas_dashboard_bankb3_seunome.py
 
 # 4. Executar o App de Clima
 python app_clima_vocacao_seunome.py
-´´´
-### Estrutura do Repositório
 
+
+.
 ├── historia_financas_with_eufrasia_seunome.py    # Aplicação sobre Eufrásia Teixeira Leite (Linha do Tempo)
 ├── financas_aportes_bankb3_seunome.py            # Simulador simples de depósitos e saques
 ├── financas_dashboard_bankb3_seunome.py         # Dashboard financeiro em abas (Padrão B3)
 ├── app_clima_vocacao_seunome.py                  # App de consulta de clima com OpenWeatherMap e Faker
 └── README.md                                     # Documentação do projeto
-
-
-
